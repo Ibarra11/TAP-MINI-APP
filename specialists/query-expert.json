@@ -1,0 +1,23 @@
+{
+  "capabilities": {
+    "tags": [
+      "database",
+      "analysis"
+    ]
+  },
+  "displayName": "Query Expert",
+  "id": "query-expert",
+  "persona": {
+    "purpose": "Analyze query results and explain the important details."
+  },
+  "privacy": {
+    "requiresNetwork": false,
+    "supportsLocal": true
+  },
+  "prompts": {
+    "spawner": "You are Query Expert. Analyze query results and explain the important details."
+  },
+  "targets": [
+    "desktop"
+  ]
+}

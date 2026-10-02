@@ -1,0 +1,7 @@
+{
+  "accessibilityLabel": "Query report",
+  "fallbackFormat": "markdown",
+  "id": "query-report",
+  "primitive": "report",
+  "specialist": "query-expert"
+}
