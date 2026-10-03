@@ -134,12 +134,6 @@ importers:
       '@rslib/core':
         specifier: 0.23.2
         version: 0.23.2(@module-federation/runtime-tools@2.8.1)(typescript@6.0.3)
-      '@rstest/core':
-        specifier: 0.11.5
-        version: 0.11.5(@module-federation/runtime-tools@2.8.1)
-      '@rstest/playwright':
-        specifier: 0.11.5
-        version: 0.11.5(@rstest/core@0.11.5(@module-federation/runtime-tools@2.8.1))(playwright@1.61.1)
       '@types/node':
         specifier: 25.9.1
         version: 25.9.1
@@ -149,9 +143,6 @@ importers:
       '@types/react-dom':
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.17)
-      playwright:
-        specifier: 1.61.1
-        version: 1.61.1
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -2502,11 +2493,13 @@ snapshots:
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
       - core-js
+    optional: true
 
   '@rstest/playwright@0.11.5(@rstest/core@0.11.5(@module-federation/runtime-tools@2.8.1))(playwright@1.61.1)':
     dependencies:
       '@rstest/core': 0.11.5(@module-federation/runtime-tools@2.8.1)
       playwright: 1.61.1
+    optional: true
 
   '@swc/helpers@0.5.23':
     dependencies:
@@ -2568,12 +2561,14 @@ snapshots:
     dependencies:
       '@types/deep-eql': 4.0.2
       assertion-error: 2.0.1
+    optional: true
 
   '@types/debug@4.1.13':
     dependencies:
       '@types/ms': 2.1.0
 
-  '@types/deep-eql@4.0.2': {}
+  '@types/deep-eql@4.0.2':
+    optional: true
 
   '@types/estree-jsx@1.0.5':
     dependencies:
@@ -2637,7 +2632,8 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  assertion-error@2.0.1: {}
+  assertion-error@2.0.1:
+    optional: true
 
   bail@2.0.2: {}
 
@@ -3206,13 +3202,15 @@ snapshots:
     dependencies:
       entities: 6.0.1
 
-  playwright-core@1.61.1: {}
+  playwright-core@1.61.1:
+    optional: true
 
   playwright@1.61.1:
     dependencies:
       playwright-core: 1.61.1
     optionalDependencies:
       fsevents: 2.3.2
+    optional: true
 
   property-information@7.2.0: {}
 
