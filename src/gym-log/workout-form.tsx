@@ -18,7 +18,11 @@ import {
   Textarea,
 } from "@theaiplatform/miniapp-sdk/ui";
 import { datetimeLocalValue, todayLocalDate, zonedLocalToUtc } from "./dates";
-import { MUSCLE_GROUPS, validateCustomExercise, validateWorkout } from "./validate";
+import {
+  MUSCLE_GROUPS,
+  validateCustomExercise,
+  validateWorkout,
+} from "./validate";
 
 type DraftSet = {
   id: string;
@@ -83,8 +87,14 @@ function exerciseFromDomain(exercise: WorkoutExercise): DraftExercise {
   };
 }
 
-function defaultDefinitionId(definitions: readonly ExerciseDefinition[]): string {
-  return definitions.find((definition) => definition.id === "bench_press")?.id ?? definitions[0]?.id ?? "";
+function defaultDefinitionId(
+  definitions: readonly ExerciseDefinition[],
+): string {
+  return (
+    definitions.find((definition) => definition.id === "bench_press")?.id ??
+    definitions[0]?.id ??
+    ""
+  );
 }
 
 function initialDraft(
@@ -131,11 +141,11 @@ function withoutUndefined<T extends object>(record: T): T {
   ) as T;
 }
 
-function toWorkout(draft: Draft, mode: "save" | "finish"): Workout {
+function toWorkout(draft: Draft, mode: "finish"): Workout {
   return withoutUndefined({
     id: draft.id,
     startedAt: zonedLocalToUtc(draft.startedLocal, draft.timeZone),
-    endedAt: mode === "finish" ? new Date().toISOString() : undefined,
+    endedAt: zonedLocalToUtc(new Date().toISOString(), draft.timeZone),
     timeZone: draft.timeZone,
     notes: optionalText(draft.notes),
     exercises: draft.exercises.map((exercise) =>
@@ -170,7 +180,10 @@ export function WorkoutForm({
   definitions: readonly ExerciseDefinition[];
   preferredWeightUnit: WeightUnit;
   onCancel: () => void;
-  onSave: (workout: Workout, newDefinitions: readonly ExerciseDefinition[]) => void;
+  onSave: (
+    workout: Workout,
+    newDefinitions: readonly ExerciseDefinition[],
+  ) => void;
 }) {
   const [draft, setDraft] = useState(() =>
     initialDraft(initial, date, definitions, preferredWeightUnit),
@@ -223,12 +236,14 @@ export function WorkoutForm({
     setIssues([]);
   }
 
-  function submit(mode: "save" | "finish") {
+  function submit(mode: "finish") {
     let workout: Workout;
     try {
       workout = toWorkout(draft, mode);
     } catch (error) {
-      setIssues([error instanceof Error ? error.message : "Start time is incomplete."]);
+      setIssues([
+        error instanceof Error ? error.message : "Start time is incomplete.",
+      ]);
       return;
     }
     const nextIssues = validateWorkout(workout, choices);
@@ -236,7 +251,9 @@ export function WorkoutForm({
       setIssues(nextIssues);
       return;
     }
-    const used = new Set(workout.exercises.map((exercise) => exercise.exerciseDefinitionId));
+    const used = new Set(
+      workout.exercises.map((exercise) => exercise.exerciseDefinitionId),
+    );
     onSave(
       workout,
       extras.filter((definition) => used.has(definition.id)),
@@ -266,7 +283,10 @@ export function WorkoutForm({
           type="datetime-local"
           value={draft.startedLocal}
           onChange={(event) =>
-            setDraft((current) => ({ ...current, startedLocal: event.target.value }))
+            setDraft((current) => ({
+              ...current,
+              startedLocal: event.target.value,
+            }))
           }
         />
       </Field>
@@ -276,11 +296,16 @@ export function WorkoutForm({
         <Textarea
           id="workout-notes"
           value={draft.notes}
-          onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
+          onChange={(event) =>
+            setDraft((current) => ({ ...current, notes: event.target.value }))
+          }
         />
       </Field>
       {draft.exercises.map((exercise, exerciseIndex) => (
-        <fieldset key={exercise.id} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <fieldset
+          key={exercise.id}
+          style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        >
           <legend>Exercise {exerciseIndex + 1}</legend>
           <NativeSelect
             aria-label={`Exercise ${exerciseIndex + 1}`}
@@ -299,9 +324,18 @@ export function WorkoutForm({
             ))}
           </NativeSelect>
           {exercise.sets.map((set, setIndex) => (
-            <div key={set.id} style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr 1fr" }}>
+            <div
+              key={set.id}
+              style={{
+                display: "grid",
+                gap: 8,
+                gridTemplateColumns: "1fr 1fr 1fr",
+              }}
+            >
               <Field>
-                <FieldLabel htmlFor={`${set.id}-weight`}>Set {setIndex + 1} weight</FieldLabel>
+                <FieldLabel htmlFor={`${set.id}-weight`}>
+                  Set {setIndex + 1} weight
+                </FieldLabel>
                 <Input
                   id={`${set.id}-weight`}
                   inputMode="decimal"
@@ -310,7 +344,9 @@ export function WorkoutForm({
                     updateExercise(exercise.id, {
                       ...exercise,
                       sets: exercise.sets.map((item) =>
-                        item.id === set.id ? { ...item, weight: event.target.value } : item,
+                        item.id === set.id
+                          ? { ...item, weight: event.target.value }
+                          : item,
                       ),
                     })
                   }
@@ -326,7 +362,11 @@ export function WorkoutForm({
                       ...exercise,
                       sets: exercise.sets.map((item) =>
                         item.id === set.id
-                          ? { ...item, weightUnit: event.target.value === "kg" ? "kg" : "lb" }
+                          ? {
+                              ...item,
+                              weightUnit:
+                                event.target.value === "kg" ? "kg" : "lb",
+                            }
                           : item,
                       ),
                     })
@@ -346,7 +386,9 @@ export function WorkoutForm({
                     updateExercise(exercise.id, {
                       ...exercise,
                       sets: exercise.sets.map((item) =>
-                        item.id === set.id ? { ...item, reps: event.target.value } : item,
+                        item.id === set.id
+                          ? { ...item, reps: event.target.value }
+                          : item,
                       ),
                     })
                   }
@@ -384,7 +426,9 @@ export function WorkoutForm({
             onClick={() =>
               setDraft((current) => ({
                 ...current,
-                exercises: current.exercises.filter((item) => item.id !== exercise.id),
+                exercises: current.exercises.filter(
+                  (item) => item.id !== exercise.id,
+                ),
               }))
             }
           >
@@ -417,40 +461,8 @@ export function WorkoutForm({
       >
         Add exercise
       </Button>
-      <fieldset style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <legend>Custom exercise</legend>
-        <Field>
-          <FieldLabel htmlFor="custom-exercise-name">Name</FieldLabel>
-          <Input
-            id="custom-exercise-name"
-            value={customName}
-            onChange={(event) => setCustomName(event.target.value)}
-          />
-        </Field>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {MUSCLE_GROUPS.map((group) => (
-            <label key={group} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-              <Checkbox
-                checked={customTargets.includes(group)}
-                onCheckedChange={(checked) => {
-                  setCustomTargets((current) =>
-                    checked === true
-                      ? [...current, group]
-                      : current.filter((item) => item !== group),
-                  );
-                }}
-              />
-              {group}
-            </label>
-          ))}
-        </div>
-        <Button type="button" variant="outline" onClick={addCustomExercise}>
-          Add custom exercise
-        </Button>
-      </fieldset>
       <div style={{ display: "flex", gap: 8 }}>
-        <Button type="submit">Finish</Button>
-        <Button type="button" variant="secondary" onClick={() => submit("save")}>
+        <Button type="submit" variant="secondary">
           Save
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
