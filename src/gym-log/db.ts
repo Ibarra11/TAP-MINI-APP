@@ -20,10 +20,15 @@ export const DAY_PAGE_SIZE = 14;
 const STORAGE_NAMESPACE = "gym-log";
 const STORAGE_KEY = "log";
 
+export type DayExercise = {
+  name: string;
+  setCount: number;
+};
+
 export type DaySummary = {
   localDate: string;
   sessionCount: number;
-  exerciseNames: string[];
+  exercises: DayExercise[];
 };
 
 export type DayPage = {
@@ -41,6 +46,7 @@ export type GymDatabase = {
   loadDay(isoDate: string): Promise<Workout[]>;
   listWorkouts(): Promise<Workout[]>;
   deleteWorkout(workoutId: string): Promise<void>;
+  deleteDay(isoDate: string): Promise<void>;
   addExercise(name: string, targets: ExerciseDefinition["targets"]): Promise<void>;
   updateExercise(definition: ExerciseDefinition): Promise<void>;
   deleteExercise(exerciseDefinitionId: string): Promise<void>;
@@ -93,7 +99,7 @@ function datesDescending(log: GymLog): string[] {
 
 function summarize(log: GymLog, dates: readonly string[]): DaySummary[] {
   const wanted = new Set(dates);
-  const namesByDate = new Map<string, string[]>();
+  const exercisesByDate = new Map<string, Map<string, DayExercise>>();
   const counts = new Map<string, number>();
   const definitions = new Map(
     log.exerciseDefinitions.map((definition) => [definition.id, definition.name]),
@@ -104,17 +110,23 @@ function summarize(log: GymLog, dates: readonly string[]): DaySummary[] {
   for (const entry of ordered) {
     if (!wanted.has(entry.localDate)) continue;
     counts.set(entry.localDate, (counts.get(entry.localDate) ?? 0) + 1);
-    const names = namesByDate.get(entry.localDate) ?? [];
+    const exercises =
+      exercisesByDate.get(entry.localDate) ?? new Map<string, DayExercise>();
     for (const exercise of entry.workout.exercises) {
       const name = definitions.get(exercise.exerciseDefinitionId);
-      if (name && !names.includes(name)) names.push(name);
+      if (!name) continue;
+      const existing = exercises.get(exercise.exerciseDefinitionId);
+      exercises.set(exercise.exerciseDefinitionId, {
+        name,
+        setCount: (existing?.setCount ?? 0) + exercise.sets.length,
+      });
     }
-    namesByDate.set(entry.localDate, names);
+    exercisesByDate.set(entry.localDate, exercises);
   }
   return dates.map((date) => ({
     localDate: date,
     sessionCount: counts.get(date) ?? 0,
-    exerciseNames: namesByDate.get(date) ?? [],
+    exercises: [...(exercisesByDate.get(date)?.values() ?? [])],
   }));
 }
 
@@ -207,6 +219,15 @@ export async function openGymDatabase(): Promise<GymDatabase | null> {
       await commit({
         ...log,
         workouts: log.workouts.filter((workout) => workout.id !== workoutId),
+      });
+    },
+    async deleteDay(isoDate) {
+      const log = requireOpen();
+      await commit({
+        ...log,
+        workouts: log.workouts.filter(
+          (workout) => localDate(workout.startedAt, workout.timeZone) !== isoDate,
+        ),
       });
     },
     async addExercise(name, targets) {

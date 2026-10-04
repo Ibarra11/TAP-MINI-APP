@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
   MiniAppBackButton,
-  MiniAppListDetail,
   MiniAppPage,
   MiniAppPageHeader,
   MiniAppPageHeaderActions,
@@ -20,6 +19,7 @@ import {
   MiniAppPageState,
   MiniAppToolbar,
   SurfaceViewport,
+  TooltipProvider,
 } from "@theaiplatform/miniapp-sdk/ui";
 import "@theaiplatform/miniapp-sdk/ui/styles.css";
 import { isMiniAppHostActionError } from "@theaiplatform/miniapp-sdk/sdk";
@@ -77,16 +77,21 @@ function viewScreen(view: GymView, listDate: string | null): GymScreen {
     : { name: "days", selectedDate: listDate };
 }
 
-/** Reloads every list after a write. The days view focuses `focusDate`; the workouts view keeps the open day. */
+/**
+ * Reloads every list after a write. The days view pages to `focusDate` and, if a day was open, opens
+ * `focusDate` instead; the workouts view keeps the open day.
+ */
 async function reloaded(
   database: GymDatabase,
   current: Ready,
   view: GymView,
   focusDate: string | null,
 ): Promise<Ready> {
-  const listDate = view === "days" ? focusDate : current.listDate;
-  const pageUpper = listDate
-    ? await database.pageUpperForDate(listDate)
+  const pageDate = view === "days" ? focusDate : current.listDate;
+  const listDate =
+    view === "days" && current.listDate === null ? null : pageDate;
+  const pageUpper = pageDate
+    ? await database.pageUpperForDate(pageDate)
     : current.pageUpper;
   const [definitions, workouts, page, day] = await Promise.all([
     database.listDefinitions(),
@@ -193,7 +198,11 @@ function GymSurface() {
     return ready.screen.name;
   }
 
-  function openEditor(workout: Workout | null, date: string, returnTo: GymView) {
+  function openEditor(
+    workout: Workout | null,
+    date: string,
+    returnTo: GymView,
+  ) {
     if (phase.kind !== "ready") return;
     show({
       ...phase,
@@ -244,10 +253,14 @@ function GymSurface() {
             aria-current={view === "days" ? "page" : undefined}
             onClick={() => {
               if (phase.kind !== "ready") return;
-              show({ ...phase, notice: null, screen: viewScreen("days", phase.listDate) });
+              show({
+                ...phase,
+                notice: null,
+                screen: viewScreen("days", phase.listDate),
+              });
             }}
           >
-            Days
+            Logs
           </Button>
           <Button
             type="button"
@@ -284,7 +297,8 @@ function GymSurface() {
             onClick={() => {
               if (phase.kind !== "ready") return;
               const returnTo = view === "workouts" ? "workouts" : "days";
-              const date = returnTo === "days" ? (phase.listDate ?? today()) : today();
+              const date =
+                returnTo === "days" ? (phase.listDate ?? today()) : today();
               openEditor(null, date, returnTo);
             }}
           >
@@ -335,12 +349,17 @@ function GymSurface() {
         />
       );
     } else if (view === "exercises") {
-      const afterExerciseChange = async (database: GymDatabase, current: Ready): Promise<Ready> => {
+      const afterExerciseChange = async (
+        database: GymDatabase,
+        current: Ready,
+      ): Promise<Ready> => {
         const [definitions, workouts, page, day] = await Promise.all([
           database.listDefinitions(),
           database.listWorkouts(),
           database.listDayPage(current.pageUpper),
-          current.listDate ? database.loadDay(current.listDate) : Promise.resolve(null),
+          current.listDate
+            ? database.loadDay(current.listDate)
+            : Promise.resolve(null),
         ]);
         return { ...current, definitions, workouts, page, day, notice: null };
       };
@@ -389,14 +408,12 @@ function GymSurface() {
           }}
         />
       );
-    } else {
+    } else if (ready.listDate) {
       main = (
-        <MiniAppListDetail
-          style={{ minHeight: 0, flex: "1 1 auto" }}
-          activePane={ready.listDate ? "detail" : "list"}
-          backAffordance={
+        <div className="flex flex-col gap-4">
+          <div>
             <MiniAppBackButton
-              label="Days"
+              label="Logs"
               onClick={() =>
                 show({
                   ...ready,
@@ -406,94 +423,104 @@ function GymSurface() {
                 })
               }
             />
+          </div>
+          <DayDetail
+            localDate={ready.listDate}
+            workouts={ready.day ?? []}
+            definitions={ready.definitions}
+            onEdit={(workout) =>
+              openEditor(
+                workout,
+                localDate(workout.startedAt, workout.timeZone),
+                "days",
+              )
+            }
+          />
+        </div>
+      );
+    } else if (ready.page.days.length === 0 && ready.pageUpper === null) {
+      main = (
+        <MiniAppPageState
+          kind="empty"
+          title="No workouts yet"
+          description="Log a workout to see it on the day list."
+          action={
+            <Button type="button" onClick={() => openEditor(null, today(), "days")}>
+              Log a workout
+            </Button>
           }
-          list={
-            ready.page.days.length === 0 && ready.pageUpper === null ? (
-              <MiniAppPageState
-                kind="empty"
-                title="No workouts yet"
-                description="Log a workout to see it on the day list."
-                action={
-                  <Button
-                    type="button"
-                    onClick={() => openEditor(null, today(), "days")}
-                  >
-                    Log a workout
-                  </Button>
-                }
-              />
-            ) : (
-              <DayList
-                days={ready.page.days}
-                selectedDate={ready.listDate}
-                hasOlder={ready.page.hasOlder}
-                hasNewer={ready.page.hasNewer}
-                onSelect={(isoDate) => {
-                  void withDatabase(async (database, current) => {
-                    const day = await database.loadDay(isoDate);
-                    return {
-                      ...current,
-                      listDate: isoDate,
-                      day,
-                      notice: null,
-                      screen: { name: "days", selectedDate: isoDate },
-                    };
-                  });
-                }}
-                onOlder={() => {
-                  const oldest = ready.page.days.at(-1)?.localDate;
-                  if (!oldest) return;
-                  void withDatabase(async (database, current) => {
-                    const page = await database.listDayPage(oldest);
-                    return {
-                      ...current,
-                      pageUpper: oldest,
-                      page,
-                      notice: null,
-                    };
-                  });
-                }}
-                onNewer={() => {
-                  const newest = ready.page.days[0]?.localDate;
-                  if (!newest) return;
-                  void withDatabase(async (database, current) => {
-                    const pageUpper =
-                      await database.upperExclusiveForNewerPage(newest);
-                    const page = await database.listDayPage(pageUpper);
-                    return { ...current, pageUpper, page, notice: null };
-                  });
-                }}
-              />
-            )
-          }
-          detail={
-            ready.listDate ? (
-              <DayDetail
-                localDate={ready.listDate}
-                workouts={ready.day ?? []}
-                definitions={ready.definitions}
-                onEdit={(workout) =>
-                  openEditor(
-                    workout,
-                    localDate(workout.startedAt, workout.timeZone),
-                    "days",
-                  )
-                }
-              />
-            ) : null
-          }
-          emptyDetail={
-            <MiniAppPageState
-              kind="empty"
-              title="Select a day"
-              description="Exercises from that day show up here."
-            />
-          }
+        />
+      );
+    } else {
+      const openDay = (current: Ready, isoDate: string, day: Workout[]): Ready => ({
+        ...current,
+        listDate: isoDate,
+        day,
+        notice: null,
+        screen: { name: "days", selectedDate: isoDate },
+      });
+      main = (
+        <DayList
+          days={ready.page.days}
+          hasOlder={ready.page.hasOlder}
+          hasNewer={ready.page.hasNewer}
+          onSelect={(isoDate) => {
+            void withDatabase(async (database, current) =>
+              openDay(current, isoDate, await database.loadDay(isoDate)),
+            );
+          }}
+          onEdit={(isoDate) => {
+            void withDatabase(async (database, current) => {
+              const day = await database.loadDay(isoDate);
+              if (day.length !== 1) return openDay(current, isoDate, day);
+              return {
+                ...current,
+                notice: null,
+                screen: {
+                  name: "editor",
+                  workout: day[0],
+                  date: isoDate,
+                  returnTo: "days",
+                },
+              };
+            });
+          }}
+          onDelete={(isoDate) => {
+            void withDatabase(async (database, current) => {
+              await database.deleteDay(isoDate);
+              const next = await reloaded(database, current, "days", null);
+              if (next.page.days.length > 0 || next.pageUpper === null) return next;
+              return { ...next, pageUpper: null, page: await database.listDayPage(null) };
+            });
+          }}
+          onOlder={() => {
+            const oldest = ready.page.days.at(-1)?.localDate;
+            if (!oldest) return;
+            void withDatabase(async (database, current) => {
+              const page = await database.listDayPage(oldest);
+              return {
+                ...current,
+                pageUpper: oldest,
+                page,
+                notice: null,
+              };
+            });
+          }}
+          onNewer={() => {
+            const newest = ready.page.days[0]?.localDate;
+            if (!newest) return;
+            void withDatabase(async (database, current) => {
+              const pageUpper =
+                await database.upperExclusiveForNewerPage(newest);
+              const page = await database.listDayPage(pageUpper);
+              return { ...current, pageUpper, page, notice: null };
+            });
+          }}
         />
       );
     }
     body = (
-      <>
+      <div className="p-4">
         {ready.notice ? <p role="alert">{ready.notice}</p> : null}
         {main}
         <Dialog
@@ -535,7 +562,7 @@ function GymSurface() {
             ) : null}
           </DialogContent>
         </Dialog>
-      </>
+      </div>
     );
   }
 
@@ -554,7 +581,11 @@ export function mount(
 ): TapFederatedSurfaceMount {
   const stopAppearanceSync = installMiniAppAppearanceSync();
   const root = createRoot(container);
-  root.render(<GymSurface />);
+  root.render(
+    <TooltipProvider>
+      <GymSurface />
+    </TooltipProvider>,
+  );
   let mounted = true;
   return {
     unmount() {
