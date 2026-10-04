@@ -39,7 +39,6 @@ import type { GymScreen, GymView } from "./gym-log/screen";
 import { TrendView } from "./gym-log/trend-view";
 import type { TrendPoint } from "./gym-log/trend";
 import { WorkoutForm } from "./gym-log/workout-form";
-import { WorkoutList } from "./gym-log/workout-list";
 
 type Ready = {
   kind: "ready";
@@ -71,27 +70,22 @@ function today(): string {
   return todayLocalDate(Intl.DateTimeFormat().resolvedOptions().timeZone);
 }
 
-function viewScreen(view: GymView, listDate: string | null): GymScreen {
-  return view === "workouts"
-    ? { name: "workouts" }
-    : { name: "days", selectedDate: listDate };
+function viewScreen(listDate: string | null): GymScreen {
+  return { name: "days", selectedDate: listDate };
 }
 
 /**
- * Reloads every list after a write. The days view pages to `focusDate` and, if a day was open, opens
- * `focusDate` instead; the workouts view keeps the open day.
+ * Reloads every list after a write. Pages to `focusDate` and, if a day was open, opens
+ * `focusDate` instead.
  */
 async function reloaded(
   database: GymDatabase,
   current: Ready,
-  view: GymView,
   focusDate: string | null,
 ): Promise<Ready> {
-  const pageDate = view === "days" ? focusDate : current.listDate;
-  const listDate =
-    view === "days" && current.listDate === null ? null : pageDate;
-  const pageUpper = pageDate
-    ? await database.pageUpperForDate(pageDate)
+  const listDate = current.listDate === null ? null : focusDate;
+  const pageUpper = focusDate
+    ? await database.pageUpperForDate(focusDate)
     : current.pageUpper;
   const [definitions, workouts, page, day] = await Promise.all([
     database.listDefinitions(),
@@ -108,7 +102,7 @@ async function reloaded(
     day,
     listDate,
     notice: null,
-    screen: viewScreen(view, listDate),
+    screen: viewScreen(listDate),
   };
 }
 
@@ -216,7 +210,7 @@ function GymSurface() {
     if (current.kind !== "ready" || current.screen.name !== "editor") return;
     show({
       ...current,
-      screen: viewScreen(current.screen.returnTo, current.listDate),
+      screen: viewScreen(current.listDate),
     });
   }
 
@@ -256,22 +250,11 @@ function GymSurface() {
               show({
                 ...phase,
                 notice: null,
-                screen: viewScreen("days", phase.listDate),
+                screen: viewScreen(phase.listDate),
               });
             }}
           >
             Logs
-          </Button>
-          <Button
-            type="button"
-            variant={view === "workouts" ? "secondary" : "ghost"}
-            aria-current={view === "workouts" ? "page" : undefined}
-            onClick={() => {
-              if (phase.kind !== "ready") return;
-              show({ ...phase, notice: null, screen: { name: "workouts" } });
-            }}
-          >
-            Workouts
           </Button>
           <Button
             type="button"
@@ -296,10 +279,7 @@ function GymSurface() {
             type="button"
             onClick={() => {
               if (phase.kind !== "ready") return;
-              const returnTo = view === "workouts" ? "workouts" : "days";
-              const date =
-                returnTo === "days" ? (phase.listDate ?? today()) : today();
-              openEditor(null, date, returnTo);
+              openEditor(null, phase.listDate ?? today(), "days");
             }}
           >
             Log workout
@@ -387,27 +367,6 @@ function GymSurface() {
           }}
         />
       );
-    } else if (view === "workouts") {
-      main = (
-        <WorkoutList
-          workouts={ready.workouts}
-          definitions={ready.definitions}
-          onAdd={() => openEditor(null, today(), "workouts")}
-          onEdit={(workout) =>
-            openEditor(
-              workout,
-              localDate(workout.startedAt, workout.timeZone),
-              "workouts",
-            )
-          }
-          onDelete={(workout) => {
-            void withDatabase(async (database, current) => {
-              await database.deleteWorkout(workout.id);
-              return reloaded(database, current, "workouts", null);
-            });
-          }}
-        />
-      );
     } else if (ready.listDate) {
       main = (
         <div className="flex flex-col gap-4">
@@ -488,7 +447,7 @@ function GymSurface() {
           onDelete={(isoDate) => {
             void withDatabase(async (database, current) => {
               await database.deleteDay(isoDate);
-              const next = await reloaded(database, current, "days", null);
+              const next = await reloaded(database, current, null);
               if (next.page.days.length > 0 || next.pageUpper === null) return next;
               return { ...next, pageUpper: null, page: await database.listDayPage(null) };
             });
@@ -547,13 +506,11 @@ function GymSurface() {
                 preferredWeightUnit={ready.preferredWeightUnit}
                 onCancel={closeEditor}
                 onSave={(workout, newDefinitions) => {
-                  const returnTo = editor.returnTo;
                   void withDatabase(async (database, current) => {
                     await database.saveWorkout(workout, newDefinitions);
                     return reloaded(
                       database,
                       current,
-                      returnTo,
                       localDate(workout.startedAt, workout.timeZone),
                     );
                   });

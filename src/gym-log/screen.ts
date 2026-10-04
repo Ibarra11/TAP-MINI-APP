@@ -1,10 +1,9 @@
 import type { Workout } from "../../gym-log-schema";
 
-export type GymView = "days" | "workouts";
+export type GymView = "days";
 
 export type GymScreen =
   | { name: "days"; selectedDate: string | null }
-  | { name: "workouts" }
   | { name: "exercises" }
   | {
       name: "editor";

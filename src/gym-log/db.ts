@@ -45,7 +45,6 @@ export type GymDatabase = {
   pageUpperForDate(isoDate: string): Promise<string | null>;
   loadDay(isoDate: string): Promise<Workout[]>;
   listWorkouts(): Promise<Workout[]>;
-  deleteWorkout(workoutId: string): Promise<void>;
   deleteDay(isoDate: string): Promise<void>;
   addExercise(name: string, targets: ExerciseDefinition["targets"]): Promise<void>;
   updateExercise(definition: ExerciseDefinition): Promise<void>;
@@ -213,13 +212,6 @@ export async function openGymDatabase(): Promise<GymDatabase | null> {
       return [...requireOpen().workouts].sort((left, right) =>
         left.startedAt < right.startedAt ? 1 : left.startedAt > right.startedAt ? -1 : 0,
       );
-    },
-    async deleteWorkout(workoutId) {
-      const log = requireOpen();
-      await commit({
-        ...log,
-        workouts: log.workouts.filter((workout) => workout.id !== workoutId),
-      });
     },
     async deleteDay(isoDate) {
       const log = requireOpen();
