@@ -11,6 +11,12 @@ import {
   CardDescription,
   CardTitle,
   Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldLabel,
   Input,
@@ -57,6 +63,8 @@ const TrashIcon = strokeIcon([
   "M3 6h18",
   "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
 ]);
+
+const PlusIcon = strokeIcon(["M5 12h14", "M12 5v14"]);
 
 function muscleLabel(group: MuscleGroup): string {
   return group.charAt(0).toUpperCase() + group.slice(1);
@@ -141,6 +149,7 @@ export function ExerciseList({
   onUpdate: (definition: ExerciseDefinition) => void;
   onDelete: (definition: ExerciseDefinition) => void;
 }) {
+  const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newTargets, setNewTargets] = useState<MuscleGroup[]>([]);
   const [addIssues, setAddIssues] = useState<string[]>([]);
@@ -157,170 +166,215 @@ export function ExerciseList({
     }
   }
 
+  function closeAdd() {
+    setAdding(false);
+    setNewName("");
+    setNewTargets([]);
+    setAddIssues([]);
+  }
+
+  function closeEdit() {
+    setEditing(null);
+    setEditIssues([]);
+  }
+
   return (
     <div data-testid="exercise-list" className="flex flex-col gap-4">
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const issues = validateExerciseDetails(
-            { id: "", name: newName, targets: newTargets, isCustom: true },
-            definitions,
-          );
-          setAddIssues(issues);
-          if (issues.length > 0) return;
-          onAdd(newName.trim(), newTargets);
-          setNewName("");
-          setNewTargets([]);
-        }}
-      >
-        <Field>
-          <FieldLabel htmlFor="new-exercise-name">New exercise</FieldLabel>
-          <Input
-            id="new-exercise-name"
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
-          />
-        </Field>
-        <TargetPicker targets={newTargets} onChange={setNewTargets} />
-        <Issues issues={addIssues} />
-        <div>
-          <Button type="submit">Add exercise</Button>
-        </div>
-      </form>
       <ul
         className="m-0 grid gap-4 p-0"
         style={{ gridTemplateColumns: GRID_COLUMNS, listStyle: "none" }}
       >
+        <li>
+          <Card className="flex h-full flex-col items-center justify-center gap-3 border border-border p-4 text-center">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Add Exercise</CardTitle>
+              <CardDescription>Choose a name and which muscles it targets</CardDescription>
+            </div>
+            <Button
+              type="button"
+              style={{ width: "75%" }}
+              onClick={() => {
+                closeEdit();
+                setAdding(true);
+              }}
+            >
+              <PlusIcon aria-hidden="true" />
+              Add
+            </Button>
+          </Card>
+        </li>
         {definitions.map((definition) => {
           const count = usage.get(definition.id) ?? 0;
           const confirming = pendingDelete === definition.id;
-          const isEditing = editing?.id === definition.id;
           return (
-            <li
-              key={definition.id}
-              style={isEditing ? { gridColumn: "1 / -1" } : undefined}
-            >
+            <li key={definition.id}>
               <Card className="flex h-full flex-col gap-3 border border-border p-4">
-                {isEditing && editing ? (
-                  <div className="flex flex-col gap-3">
-                    <Field>
-                      <FieldLabel htmlFor={`${definition.id}-name`}>Name</FieldLabel>
-                      <Input
-                        id={`${definition.id}-name`}
-                        value={editing.name}
-                        onChange={(event) =>
-                          setEditing({ ...editing, name: event.target.value })
-                        }
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <CardTitle className="truncate text-base">
+                        {definition.name}
+                      </CardTitle>
+                      {definition.isCustom ? (
+                        <Badge variant="outline">Custom</Badge>
+                      ) : null}
+                    </div>
+                    <CardDescription>
+                      {count === 1 ? "Used in 1 workout" : `Used in ${count} workouts`}
+                    </CardDescription>
+                  </div>
+                  {confirming ? null : (
+                    <div className="flex shrink-0 gap-1">
+                      <MiniAppIconButton
+                        icon={PencilIcon}
+                        label={`Edit ${definition.name}`}
+                        onClick={() => {
+                          closeAdd();
+                          setPendingDelete(null);
+                          setEditing({
+                            ...definition,
+                            targets: [...definition.targets],
+                          });
+                        }}
                       />
-                    </Field>
-                    <TargetPicker
-                      targets={editing.targets}
-                      onChange={(targets) => setEditing({ ...editing, targets })}
-                    />
-                    <Issues issues={editIssues} />
-                    <div className="flex gap-2">
+                      <MiniAppIconButton
+                        icon={TrashIcon}
+                        label={
+                          count > 0
+                            ? `Remove ${definition.name} from its workouts before deleting.`
+                            : `Delete ${definition.name}`
+                        }
+                        disabled={count > 0}
+                        onClick={() => setPendingDelete(definition.id)}
+                      />
+                    </div>
+                  )}
+                </div>
+                <TargetBadges targets={definition.targets} />
+                {confirming ? (
+                  <div className="mt-auto flex items-center justify-between gap-2">
+                    <span className="text-sm">Delete this exercise?</span>
+                    <div className="flex gap-1">
                       <Button
                         type="button"
-                        onClick={() => {
-                          const issues = validateExerciseDetails(editing, definitions);
-                          setEditIssues(issues);
-                          if (issues.length > 0) return;
-                          onUpdate(editing);
-                          setEditing(null);
-                        }}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPendingDelete(null)}
                       >
-                        Save
+                        Keep
                       </Button>
                       <Button
                         type="button"
-                        variant="ghost"
+                        size="sm"
+                        variant="destructive"
                         onClick={() => {
-                          setEditing(null);
-                          setEditIssues([]);
+                          setPendingDelete(null);
+                          onDelete(definition);
                         }}
                       >
-                        Cancel
+                        Delete
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-col gap-1">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <CardTitle className="truncate text-base">
-                            {definition.name}
-                          </CardTitle>
-                          {definition.isCustom ? (
-                            <Badge variant="outline">Custom</Badge>
-                          ) : null}
-                        </div>
-                        <CardDescription>
-                          {count === 1 ? "Used in 1 workout" : `Used in ${count} workouts`}
-                        </CardDescription>
-                      </div>
-                      {confirming ? null : (
-                        <div className="flex shrink-0 gap-1">
-                          <MiniAppIconButton
-                            icon={PencilIcon}
-                            label={`Edit ${definition.name}`}
-                            onClick={() => {
-                              setPendingDelete(null);
-                              setEditing({
-                                ...definition,
-                                targets: [...definition.targets],
-                              });
-                              setEditIssues([]);
-                            }}
-                          />
-                          <MiniAppIconButton
-                            icon={TrashIcon}
-                            label={
-                              count > 0
-                                ? `Remove ${definition.name} from its workouts before deleting.`
-                                : `Delete ${definition.name}`
-                            }
-                            disabled={count > 0}
-                            onClick={() => setPendingDelete(definition.id)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <TargetBadges targets={definition.targets} />
-                    {confirming ? (
-                      <div className="mt-auto flex items-center justify-between gap-2">
-                        <span className="text-sm">Delete this exercise?</span>
-                        <div className="flex gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setPendingDelete(null)}
-                          >
-                            Keep
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              setPendingDelete(null);
-                              onDelete(definition);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </>
-                )}
+                ) : null}
               </Card>
             </li>
           );
         })}
       </ul>
+      <Dialog
+        open={adding}
+        onOpenChange={(open) => {
+          if (!open) closeAdd();
+        }}
+      >
+        <DialogContent style={{ maxHeight: "100%", overflowY: "auto" }}>
+          <DialogHeader>
+            <DialogTitle>Add exercise</DialogTitle>
+            <DialogDescription>Name it and choose muscle targets.</DialogDescription>
+          </DialogHeader>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const issues = validateExerciseDetails(
+                { id: "", name: newName, targets: newTargets, isCustom: true },
+                definitions,
+              );
+              setAddIssues(issues);
+              if (issues.length > 0) return;
+              onAdd(newName.trim(), newTargets);
+              closeAdd();
+            }}
+          >
+            <Field>
+              <FieldLabel htmlFor="new-exercise-name">Name</FieldLabel>
+              <Input
+                id="new-exercise-name"
+                value={newName}
+                autoFocus
+                onChange={(event) => setNewName(event.target.value)}
+              />
+            </Field>
+            <TargetPicker targets={newTargets} onChange={setNewTargets} />
+            <Issues issues={addIssues} />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={closeAdd}>
+                Cancel
+              </Button>
+              <Button type="submit">Add exercise</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) closeEdit();
+        }}
+      >
+        <DialogContent style={{ maxHeight: "100%", overflowY: "auto" }}>
+          <DialogHeader>
+            <DialogTitle>Edit exercise</DialogTitle>
+            <DialogDescription>Update the name and muscle targets.</DialogDescription>
+          </DialogHeader>
+          {editing ? (
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const issues = validateExerciseDetails(editing, definitions);
+                setEditIssues(issues);
+                if (issues.length > 0) return;
+                onUpdate(editing);
+                closeEdit();
+              }}
+            >
+              <Field>
+                <FieldLabel htmlFor={`${editing.id}-name`}>Name</FieldLabel>
+                <Input
+                  id={`${editing.id}-name`}
+                  value={editing.name}
+                  onChange={(event) =>
+                    setEditing({ ...editing, name: event.target.value })
+                  }
+                />
+              </Field>
+              <TargetPicker
+                targets={editing.targets}
+                onChange={(targets) => setEditing({ ...editing, targets })}
+              />
+              <Issues issues={editIssues} />
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={closeEdit}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save</Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
