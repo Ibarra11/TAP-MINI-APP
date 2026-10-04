@@ -54,6 +54,8 @@ const TrashIcon = strokeIcon([
   "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
 ]);
 
+const PlusIcon = strokeIcon(["M5 12h14", "M12 5v14"]);
+
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
@@ -62,6 +64,7 @@ export function DayList({
   days,
   hasOlder,
   hasNewer,
+  onAdd,
   onSelect,
   onEdit,
   onDelete,
@@ -71,6 +74,7 @@ export function DayList({
   days: readonly DaySummary[];
   hasOlder: boolean;
   hasNewer: boolean;
+  onAdd: () => void;
   onSelect: (localDate: string) => void;
   onEdit: (localDate: string) => void;
   onDelete: (localDate: string) => void;
@@ -95,6 +99,18 @@ export function DayList({
         className="m-0 grid gap-4 p-0"
         style={{ gridTemplateColumns: GRID_COLUMNS, listStyle: "none" }}
       >
+        <li>
+          <Card className="flex h-full flex-col items-center justify-center gap-3 border border-border p-4 text-center">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-base">Add Log</CardTitle>
+              <CardDescription>Record a workout and the sets you did</CardDescription>
+            </div>
+            <Button type="button" style={{ width: "75%" }} onClick={onAdd}>
+              <PlusIcon aria-hidden="true" />
+              Add
+            </Button>
+          </Card>
+        </li>
         {days.map((day) => {
           const label = formatDayLabel(day.localDate);
           const setCount = day.exercises.reduce(

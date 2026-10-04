@@ -275,15 +275,6 @@ function GymSurface() {
           >
             Compare
           </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              if (phase.kind !== "ready") return;
-              openEditor(null, phase.listDate ?? today(), "days");
-            }}
-          >
-            Log workout
-          </Button>
         </MiniAppPageHeaderActions>
       </MiniAppPageHeader>
     </MiniAppToolbar>
@@ -397,19 +388,6 @@ function GymSurface() {
           />
         </div>
       );
-    } else if (ready.page.days.length === 0 && ready.pageUpper === null) {
-      main = (
-        <MiniAppPageState
-          kind="empty"
-          title="No workouts yet"
-          description="Log a workout to see it on the day list."
-          action={
-            <Button type="button" onClick={() => openEditor(null, today(), "days")}>
-              Log a workout
-            </Button>
-          }
-        />
-      );
     } else {
       const openDay = (current: Ready, isoDate: string, day: Workout[]): Ready => ({
         ...current,
@@ -423,6 +401,7 @@ function GymSurface() {
           days={ready.page.days}
           hasOlder={ready.page.hasOlder}
           hasNewer={ready.page.hasNewer}
+          onAdd={() => openEditor(null, today(), "days")}
           onSelect={(isoDate) => {
             void withDatabase(async (database, current) =>
               openDay(current, isoDate, await database.loadDay(isoDate)),
