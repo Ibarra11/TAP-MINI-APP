@@ -302,112 +302,123 @@ export function WorkoutForm({
         />
       </Field>
       {draft.exercises.map((exercise, exerciseIndex) => (
-        <fieldset
+        <section
           key={exercise.id}
-          style={{ display: "flex", flexDirection: "column", gap: 8 }}
+          aria-label={`Exercise ${exerciseIndex + 1}`}
+          className="flex flex-col gap-4 rounded-xl border border-border p-4"
         >
-          <legend>Exercise {exerciseIndex + 1}</legend>
-          <NativeSelect
-            aria-label={`Exercise ${exerciseIndex + 1}`}
-            value={exercise.exerciseDefinitionId}
-            onChange={(event) =>
-              updateExercise(exercise.id, {
-                ...exercise,
-                exerciseDefinitionId: event.target.value,
-              })
-            }
-          >
-            {choices.map((definition) => (
-              <NativeSelectOption key={definition.id} value={definition.id}>
-                {definition.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-          {exercise.sets.map((set, setIndex) => (
-            <div
-              key={set.id}
-              style={{
-                display: "grid",
-                gap: 8,
-                gridTemplateColumns: "1fr 1fr 1fr",
-              }}
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-base font-medium">
+              Exercise {exerciseIndex + 1}
+            </p>
+            <NativeSelect
+              aria-label={`Exercise ${exerciseIndex + 1}`}
+              value={exercise.exerciseDefinitionId}
+              onChange={(event) =>
+                updateExercise(exercise.id, {
+                  ...exercise,
+                  exerciseDefinitionId: event.target.value,
+                })
+              }
             >
-              <Field>
-                <FieldLabel htmlFor={`${set.id}-weight`}>
-                  Set {setIndex + 1} weight
-                </FieldLabel>
-                <Input
-                  id={`${set.id}-weight`}
-                  inputMode="decimal"
-                  value={set.weight}
-                  onChange={(event) =>
+              {choices.map((definition) => (
+                <NativeSelectOption key={definition.id} value={definition.id}>
+                  {definition.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
+          <div className="flex flex-col gap-3">
+            {exercise.sets.map((set, setIndex) => (
+              <div
+                key={set.id}
+                className="flex flex-col gap-3 rounded-lg bg-muted p-3"
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 12,
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                  }}
+                >
+                  <Field>
+                    <FieldLabel htmlFor={`${set.id}-weight`}>
+                      Set {setIndex + 1} weight
+                    </FieldLabel>
+                    <Input
+                      id={`${set.id}-weight`}
+                      inputMode="decimal"
+                      value={set.weight}
+                      onChange={(event) =>
+                        updateExercise(exercise.id, {
+                          ...exercise,
+                          sets: exercise.sets.map((item) =>
+                            item.id === set.id
+                              ? { ...item, weight: event.target.value }
+                              : item,
+                          ),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`${set.id}-unit`}>Unit</FieldLabel>
+                    <NativeSelect
+                      id={`${set.id}-unit`}
+                      value={set.weightUnit}
+                      onChange={(event) =>
+                        updateExercise(exercise.id, {
+                          ...exercise,
+                          sets: exercise.sets.map((item) =>
+                            item.id === set.id
+                              ? {
+                                  ...item,
+                                  weightUnit:
+                                    event.target.value === "kg" ? "kg" : "lb",
+                                }
+                              : item,
+                          ),
+                        })
+                      }
+                    >
+                      <NativeSelectOption value="lb">lb</NativeSelectOption>
+                      <NativeSelectOption value="kg">kg</NativeSelectOption>
+                    </NativeSelect>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor={`${set.id}-reps`}>Reps</FieldLabel>
+                    <Input
+                      id={`${set.id}-reps`}
+                      inputMode="numeric"
+                      value={set.reps}
+                      onChange={(event) =>
+                        updateExercise(exercise.id, {
+                          ...exercise,
+                          sets: exercise.sets.map((item) =>
+                            item.id === set.id
+                              ? { ...item, reps: event.target.value }
+                              : item,
+                          ),
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() =>
                     updateExercise(exercise.id, {
                       ...exercise,
-                      sets: exercise.sets.map((item) =>
-                        item.id === set.id
-                          ? { ...item, weight: event.target.value }
-                          : item,
-                      ),
-                    })
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`${set.id}-unit`}>Unit</FieldLabel>
-                <NativeSelect
-                  id={`${set.id}-unit`}
-                  value={set.weightUnit}
-                  onChange={(event) =>
-                    updateExercise(exercise.id, {
-                      ...exercise,
-                      sets: exercise.sets.map((item) =>
-                        item.id === set.id
-                          ? {
-                              ...item,
-                              weightUnit:
-                                event.target.value === "kg" ? "kg" : "lb",
-                            }
-                          : item,
-                      ),
+                      sets: exercise.sets.filter((item) => item.id !== set.id),
                     })
                   }
                 >
-                  <NativeSelectOption value="lb">lb</NativeSelectOption>
-                  <NativeSelectOption value="kg">kg</NativeSelectOption>
-                </NativeSelect>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`${set.id}-reps`}>Reps</FieldLabel>
-                <Input
-                  id={`${set.id}-reps`}
-                  inputMode="numeric"
-                  value={set.reps}
-                  onChange={(event) =>
-                    updateExercise(exercise.id, {
-                      ...exercise,
-                      sets: exercise.sets.map((item) =>
-                        item.id === set.id
-                          ? { ...item, reps: event.target.value }
-                          : item,
-                      ),
-                    })
-                  }
-                />
-              </Field>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() =>
-                  updateExercise(exercise.id, {
-                    ...exercise,
-                    sets: exercise.sets.filter((item) => item.id !== set.id),
-                  })
-                }
-              >
-                Remove set
-              </Button>
-            </div>
-          ))}
+                  Remove set
+                </Button>
+              </div>
+            ))}
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -434,7 +445,7 @@ export function WorkoutForm({
           >
             Remove exercise
           </Button>
-        </fieldset>
+        </section>
       ))}
       <Button
         type="button"
