@@ -195,10 +195,11 @@ export async function openGymDatabase(): Promise<GymDatabase | null> {
       return newer[DAY_PAGE_SIZE] ?? null;
     },
     async pageUpperForDate(isoDate) {
-      const newer = datesDescending(requireOpen())
-        .filter((date) => date > isoDate)
-        .sort();
-      return newer[0] ?? null;
+      const dates = datesDescending(requireOpen());
+      const index = dates.indexOf(isoDate);
+      if (index < DAY_PAGE_SIZE) return null;
+      const pageStart = Math.floor(index / DAY_PAGE_SIZE) * DAY_PAGE_SIZE;
+      return dates[pageStart - 1] ?? null;
     },
     async loadDay(isoDate) {
       return datedWorkouts(requireOpen())
