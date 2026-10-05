@@ -473,7 +473,7 @@ function GymSurface() {
                 {editor?.workout ? "Edit workout" : "Log workout"}
               </DialogTitle>
               <DialogDescription>
-                Save leaves the session in progress. Finish records an end time.
+                Save stores this workout and records an end time.
               </DialogDescription>
             </DialogHeader>
             {editor ? (

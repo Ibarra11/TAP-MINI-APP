@@ -141,11 +141,11 @@ function withoutUndefined<T extends object>(record: T): T {
   ) as T;
 }
 
-function toWorkout(draft: Draft, mode: "finish"): Workout {
+function toWorkout(draft: Draft): Workout {
   return withoutUndefined({
     id: draft.id,
     startedAt: zonedLocalToUtc(draft.startedLocal, draft.timeZone),
-    endedAt: zonedLocalToUtc(new Date().toISOString(), draft.timeZone),
+    endedAt: new Date().toISOString(),
     timeZone: draft.timeZone,
     notes: optionalText(draft.notes),
     exercises: draft.exercises.map((exercise) =>
@@ -236,10 +236,10 @@ export function WorkoutForm({
     setIssues([]);
   }
 
-  function submit(mode: "finish") {
+  function submit() {
     let workout: Workout;
     try {
-      workout = toWorkout(draft, mode);
+      workout = toWorkout(draft);
     } catch (error) {
       setIssues([
         error instanceof Error ? error.message : "Start time is incomplete.",
@@ -266,7 +266,7 @@ export function WorkoutForm({
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
       onSubmit={(event) => {
         event.preventDefault();
-        submit("finish");
+        submit();
       }}
     >
       {issues.length > 0 ? (
